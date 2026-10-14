@@ -1,0 +1,67 @@
+name: Counters
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  schedule:
+    # Monday morning, so a new nginx release that breaks the pair shows up
+    # here and not in somebody's monitoring
+    - cron: '59 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    name: counted into the binary
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The suite in t/ can ask the display what it answers without the stream
+    # side.  It cannot make the two modules meet: the counting happens in
+    # the stream subsystem, the answering in an http server, and the only
+    # thing between them is shared memory.  A pair that disagrees about that
+    # memory builds, starts, logs nothing and answers nonsense -- so this
+    # gate sends known traffic and checks the numbers.
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup
+        with:
+          test-nginx: 'false'
+
+      - name: Build nginx with both modules in it
+        run: |
+          . .github/versions.env
+          ci/build.sh "$NGINX_VERSION" "$HOME/nginx"
+
+      - name: Four connections, and what the display made of them
+        run: ci/counters.sh "$HOME/nginx/sbin/nginx"
+
+  dynamic:
+    name: counted from two loadable objects
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The shape the FreeBSD ports build: two .so files, loaded by two
+    # load_module lines, the stream one first because the http one looks for
+    # the zone it creates.
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup
+        with:
+          test-nginx: 'false'
+
+      - name: Build the modules as loadable objects
+        run: |
+          . .github/versions.env
+          ci/build.sh "$NGINX_VERSION" "$HOME/nginx" dynamic
+
+      - name: Four connections, through the loaded pair
+        run: |
+          mods="$HOME/nginx/modules/ngx_stream_server_traffic_status_module.so"
+          mods="$mods $HOME/nginx/modules/ngx_http_stream_server_traffic_status_module.so"
+          COUNTERS_LOAD_MODULES="$mods" ci/counters.sh "$HOME/nginx/sbin/nginx"

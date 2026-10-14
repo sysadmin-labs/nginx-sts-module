@@ -1,0 +1,72 @@
+ngx_addon_name=ngx_sts_module
+
+# Two modules out of one addon directory, the way njs does it: one counts in
+# the stream subsystem, the other holds the shared memory and answers the
+# status requests from an http server.  Upstream keeps them in two
+# repositories that have to be added separately, and that is the only reason
+# they were ever apart -- they share the layout of the memory they both
+# touch, so a pair that does not match reads nonsense.  Here they ship
+# together and src/ngx_sts_layout_check.c makes the compiler say so.
+
+STS_STREAM_SRCS="$ngx_addon_dir/src/ngx_stream_server_traffic_status_filter.c \
+                 $ngx_addon_dir/src/ngx_stream_server_traffic_status_limit.c \
+                 $ngx_addon_dir/src/ngx_stream_server_traffic_status_module.c \
+                 $ngx_addon_dir/src/ngx_stream_server_traffic_status_node.c \
+                 $ngx_addon_dir/src/ngx_stream_server_traffic_status_shm.c \
+                 $ngx_addon_dir/src/ngx_stream_server_traffic_status_string.c \
+                 $ngx_addon_dir/src/ngx_stream_server_traffic_status_variables.c \
+                 $ngx_addon_dir/src/ngx_sts_layout_check.c"
+
+STS_STREAM_DEPS="$ngx_addon_dir/src/ngx_stream_server_traffic_status_filter.h \
+                 $ngx_addon_dir/src/ngx_stream_server_traffic_status_limit.h \
+                 $ngx_addon_dir/src/ngx_stream_server_traffic_status_module.h \
+                 $ngx_addon_dir/src/ngx_stream_server_traffic_status_node.h \
+                 $ngx_addon_dir/src/ngx_stream_server_traffic_status_shm.h \
+                 $ngx_addon_dir/src/ngx_stream_server_traffic_status_string.h \
+                 $ngx_addon_dir/src/ngx_stream_server_traffic_status_variables.h"
+
+STS_HTTP_SRCS="$ngx_addon_dir/src/ngx_http_stream_server_traffic_status_control.c \
+                 $ngx_addon_dir/src/ngx_http_stream_server_traffic_status_display.c \
+                 $ngx_addon_dir/src/ngx_http_stream_server_traffic_status_display_json.c \
+                 $ngx_addon_dir/src/ngx_http_stream_server_traffic_status_display_prometheus.c \
+                 $ngx_addon_dir/src/ngx_http_stream_server_traffic_status_filter.c \
+                 $ngx_addon_dir/src/ngx_http_stream_server_traffic_status_module.c \
+                 $ngx_addon_dir/src/ngx_http_stream_server_traffic_status_node.c \
+                 $ngx_addon_dir/src/ngx_http_stream_server_traffic_status_shm.c \
+                 $ngx_addon_dir/src/ngx_http_stream_server_traffic_status_string.c"
+
+STS_HTTP_DEPS="$ngx_addon_dir/src/ngx_http_stream_server_traffic_status_control.h \
+                 $ngx_addon_dir/src/ngx_http_stream_server_traffic_status_display.h \
+                 $ngx_addon_dir/src/ngx_http_stream_server_traffic_status_display_json.h \
+                 $ngx_addon_dir/src/ngx_http_stream_server_traffic_status_display_prometheus.h \
+                 $ngx_addon_dir/src/ngx_http_stream_server_traffic_status_filter.h \
+                 $ngx_addon_dir/src/ngx_http_stream_server_traffic_status_module.h \
+                 $ngx_addon_dir/src/ngx_http_stream_server_traffic_status_module_html.h \
+                 $ngx_addon_dir/src/ngx_http_stream_server_traffic_status_node.h \
+                 $ngx_addon_dir/src/ngx_http_stream_server_traffic_status_shm.h \
+                 $ngx_addon_dir/src/ngx_http_stream_server_traffic_status_string.h"
+
+# The display asks nginx for its connection and request counters, which
+# exist only where the stub status module put them.
+have=NGX_STAT_STUB . auto/have
+
+if [ -n "$ngx_module_link" ]; then
+    ngx_module_type=STREAM
+    ngx_module_name=ngx_stream_server_traffic_status_module
+    ngx_module_srcs="$STS_STREAM_SRCS"
+    ngx_module_deps="$STS_STREAM_DEPS"
+
+    . auto/module
+
+    ngx_module_type=HTTP
+    ngx_module_name=ngx_http_stream_server_traffic_status_module
+    ngx_module_srcs="$STS_HTTP_SRCS"
+    ngx_module_deps="$STS_HTTP_DEPS"
+
+    . auto/module
+else
+    STREAM_MODULES="$STREAM_MODULES ngx_stream_server_traffic_status_module"
+    HTTP_MODULES="$HTTP_MODULES ngx_http_stream_server_traffic_status_module"
+    NGX_ADDON_SRCS="$NGX_ADDON_SRCS $STS_STREAM_SRCS $STS_HTTP_SRCS"
+    NGX_ADDON_DEPS="$NGX_ADDON_DEPS $STS_STREAM_DEPS $STS_HTTP_DEPS"
+fi
