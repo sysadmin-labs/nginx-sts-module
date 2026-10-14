@@ -112,8 +112,11 @@ load_module modules/ngx_stream_server_traffic_status_module.so;
 load_module modules/ngx_http_stream_server_traffic_status_module.so;
 ```
 
-The directives of each module are the upstream ones and unchanged;
-upstream's READMEs document them in full.
+The directives are the upstream ones and unchanged, and upstream documents
+them in full: [nginx-module-sts](https://github.com/vozlt/nginx-module-sts)
+for the display,
+[nginx-module-stream-sts](https://github.com/vozlt/nginx-module-stream-sts)
+for the counting.
 
 ## What the counters do and do not say
 
@@ -143,11 +146,12 @@ TEST_NGINX_BINARY=/tmp/nginx-test/sbin/nginx prove -r t/
 ci/counters.sh /tmp/nginx-test/sbin/nginx
 ```
 
-`t/` asks what the display answers for a given configuration, including
-the two refusals and which one means what.  `ci/counters.sh` is the one that matters: it puts four connections
-through a stream server, each answered with twelve known bytes, and checks
-what the display made of them -- the numbers, not the status code, because
-a mismatched pair answers 200 with nonsense.
+`t/` asks what the display answers for a given configuration, including the
+two refusals and which one means what.  `ci/counters.sh` is the one that
+matters: four connections through a stream server, six bytes each way out
+and twelve back, and then what the display and the Prometheus exposition
+made of them.  The numbers are the oracle, not the status code -- a
+mismatched pair answers 200 with nonsense.
 
 ## License
 
